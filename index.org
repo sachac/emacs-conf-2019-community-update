@@ -1,0 +1,473 @@
+#+PROPERTY: header-args    :results silent
+
+* Setup
+
+#+begin_src sh
+xsetwacom set "Wacom ISDv4 E6 Pen stylus" MapToOutput LVDS-1
+sudo ddcutil --mfg=ACR setvcp 10 40  # brightness
+# sudo ddcutil --mfg=WAC setvcp 12 100  # contrast
+#+end_src
+
+#+begin_src emacs-lisp :results none :lexical t
+  (use-package frame-fns :load-path "~/cloud/elisp")
+  (defmacro with-notes (&rest body)
+    `(with-current-buffer (get-buffer "talk notes")
+       ,@body))
+  (defmacro with-presentation (&rest body)
+    `(with-selected-frame (get-a-frame "Presentation")
+       ,@body))
+  (defmacro with-presentation-buffer (&rest body)
+    `(with-presentation
+       (switch-to-buffer (get-buffer-create "*Presentation*"))
+       ,@body))
+  (defun my/scroll-notes-down () (interactive) (with-notes (scroll-down)))
+  (defun my/scroll-notes-up () (interactive) (with-notes (scroll-up)))
+  (defun my/scroll-presentation-down () (interactive) (with-presentation (scroll-down)))
+  (defun my/scroll-presentation-up () (interactive) (with-presentation (scroll-up)))
+  (setq org-confirm-babel-evaluate nil)
+
+  ;; Set up frames
+  (defun my/set-up-talk-frames ()
+    (unless (get-buffer "talk notes")
+      (set-frame-name "talk notes")
+      (with-current-buffer (find-file "~/cloud/emacs-conf-2019-community/index.org")
+        (rename-buffer "talk notes")))
+    (unless (get-a-frame "Presentation")
+      (make-frame '((name . "Presentation"))))
+    (with-presentation 
+      (set-frame-font "-PfEd-DejaVu Sans Mono-normal-normal-normal-*-20-*-*-*-m-0-iso10646-1")
+      (switch-to-buffer (get-buffer-create "*Presentation*"))
+      (org-mode))
+    (with-notes (set-frame-font "-PfEd-DejaVu Sans Mono-normal-normal-normal-*-20-*-*-*-m-0-iso10646-1")))
+  (defun my/modeline (text) 
+    (interactive "MText: ")
+    (with-presentation (setq mode-line-format (concat " " text))
+                       (force-mode-line-update)))
+
+  (defun my/modeline-flash (text seconds)
+    (interactive (list (read-string "Text: ") (read-number "Seconds: " 5)))
+    (dotimes (i seconds)
+      (if (= (% i 2) 0)
+          (my/modeline text)
+        (my/modeline (concat text " <--- ")))
+      (message "%d" i)
+      (sit-for 1)))
+
+  (defun my/present-big-text (text &optional scale) 
+    (interactive (list (read-string "Text: ") 6))
+    (with-presentation-buffer
+      (erase-buffer)
+      (insert text)
+      (when scale (text-scale-set scale))
+      (goto-char (point-min))))
+  (defun my/present-file (filename &optional caption)
+    (interactive (list (read-file-name "Filename: ")))
+    (with-presentation
+      (find-file (expand-file-name filename "~/cloud/emacs-conf-2019-community/"))
+      (delete-other-windows)
+      (when (derived-mode-p 'image-mode)
+        (image-transform-reset))
+      (when caption (my/modeline caption))))
+  (defun my/present-web (url)  
+    (interactive "MURL: ")
+    (with-presentation (eww url)))
+  (my/set-up-talk-frames)
+  (global-set-key (kbd "C-c w") 'ace-window)
+#+end_src
+
+* TODO Emacs Community Welcome and Update
+
+** 1m intro
+
+#+begin_src emacs-lisp
+(my/present-big-text "\n\n\n\nEmacs Community Update\nSacha Chua" 6)
+#+end_src
+
+#+begin_src emacs-lisp :lexical t
+  (my/present-web "https://sachachua.com/blog/emacs-news")
+#+end_src
+
+Hi! I'm Sacha Chua, and among other things, I've been putting together
+a weekly Emacs newsletter called Emacs News. 
+
+Before I give you a whirlwind tour of what's been going on in the
+Emacs community since the last conference in 2015, I want to thank
+Amin, because this conference would definitely not have happened
+without all his hard work. So, yay, Amin!
+
+#+begin_src emacs-lisp
+(with-presentation (my/paint))
+#+end_src
+
+#+begin_src emacs-lisp
+(with-presentation (switch-to-buffer "*paint*"))
+#+end_src
+
+All right. So there are three big things I want to cover today.
+
+1. Over the last four years, lots of people have come to Emacs because
+   of "killer apps" such as Spacemacs, Org Mode, and Magit.
+2. Emacs itself keeps growing, with so many new packages and lots of
+   core development (which John Wiegley will talk about later).
+3. Other editors like VSCode, Atom, and Vim keep developing, of
+   course, and there's lots of crosspollination.
+
+Lastly, I'd love to ask you to help brainstorm how we could help the
+Emacs community become even better. Please feel free to chat about
+ideas and suggestions in the #emacsconf channel on irc.freenode.net,
+or in comments if you're watching this after the conference.
+
+So let's go into more detail.
+
+** 6m what's new since the last conference?
+
+*** 1m Critical mass for Spacemacs
+
+Spacemacs and other Emacs configurations have opened things up for a
+lot of people who might not have considered Emacs before, especially
+Vim users. It's so easy to set up keybindings (Emacs, vi, or hybrid),
+combinations of packages, and reasonable defaults.
+
+#+begin_src emacs-lisp
+(my/present-web "http://spacemacs.org/layers/LAYERS.html")
+#+end_src
+
+We used to advise new users to start with simple configurations
+instead of copying big chunks, because it can be hard to get help when
+there's so much in your config that might change Emacs's behaviour.
+Now there are enough people who have Spacemacs as a starting point
+that you can probably find someone who can help you if you get stuck.
+Hooray for Spacemacs!
+
+#+begin_src emacs-lisp
+(my/present-file "spacemacs-gitter.png")
+#+end_src
+
+*** Org Mode
+
+Org Mode started off as a simple way to manage tasks and notes, but it
+has grown into so, so much more. I won't go into much detail, just a
+quick overview of how things are growing.
+
+#+begin_src emacs-lisp
+(with-presentation (switch-to-buffer "*paint*"))
+#+end_src
+
+**** Publishing
+
+#+begin_src emacs-lisp
+(my/present-web "https://ox-hugo.scripter.co/")
+#+end_src
+
+Lately there's been quite a bit of interest in using Org Mode together
+with Jekyll or Hugo to publish websites.
+
+#+begin_src emacs-lisp
+(my/present-web "https://pandoc.org/index.html")
+#+end_src
+
+The pandoc tool has been adding support for more Org Mode markup,
+so you can convert to and from even more formats.
+
+#+begin_src emacs-lisp
+(my/present-web "https://github.com/novoid/github-orgmode-tests")
+#+end_src
+
+Even Github can display Org Mode files now.
+
+**** Literate programming
+
+#+begin_src emacs-lisp
+(my/present-web "https://orgmode.org/worg/org-contrib/babel/languages.html")
+#+end_src
+
+People have been busy adding support for embedding even more languages
+and tools to Org Mode. The [[https://orgmode.org/worg/org-contrib/babel/languages.html][Org Babel page]] now lists support for 75
+languages...
+
+#+begin_src emacs-lisp
+(my/present-big-text "ob-ammonite ob-applescript ob-async ob-blockdiag ob-cfengine3 ob-clojurescript ob-coffee ob-coffeescript ob-crystal ob-dao ob-dart ob-diagrams ob-elvish ob-fsharp ob-go ob-html-chrome ob-hy ob-mermaid ob-ml-marklogic ob-nim ob-restclient ob-rust ob-sagemath ob-sql-mode ob-svgbob ob-swift ob-tmux ob-uart...")
+#+end_src
+
+... and there are about 25 other packages that don't seem to be listed on that page, so more than a hundred things. Wow!
+
+Of course, embedding Emacs Lisp into Org Mode is popular. Quite a few
+people have shared their Emacs configurations through Org Mode.
+
+People also share their Emacs configs written in straight Emacs Lisp, and that's neat too.
+
+**** Mobile and cloud
+
+The awesomeness of Org Mode also seems to be encouraging people to
+work on accessing it from outside Emacs, because people want their
+TODOs and notes everywhere. I like using Orgzly and Termux on Android,
+and there are a bunch of other projects. 
+
+#+begin_src emacs-lisp
+(my/present-file "cloudmacs.png" "From https://github.com/karlicoss/cloudmacs")
+#+end_src
+
+There are even web-based approaches like Cloudmacs and Org-web.
+
+
+*** Magit
+
+Magit is a great way to work with Git source code repositories.
+
+#+begin_src emacs-lisp
+(my/present-file "magit.png")
+#+end_src
+
+There are a bunch of new tutorials on how to use Magit, and quite a
+lot of new packages. I won't go into the details, but I just wanted to
+thank Magit for bringing lots of people into the community.
+
+*** MELPA, other package managers
+
+visual: https://melpa.org/#/
+
+#+begin_src emacs-lisp
+(with-presentation (paradox-list-packages t))
+#+end_src
+
+Of course, there's so much more to Emacs than these big packages.
+MELPA and other package managers have made so easy to install and try
+out code. Four years ago, there were about [[https://github.com/melpa/melpa/commit/98270840568fa1fca2d92f26108444fb24609e83][2700 packages]] available
+through MELPA and ELPA. Now I think there are more than 4500. On
+MELPA, there have been more than a hundred million downloads to date.
+Wow!
+
+There are a number of big groups of packages. Here are the top 15 by
+the number of packages:
+
+#+begin_src emacs-lisp
+(my/present-big-text "
+| 226 | org (+ ob- and ox-) | ob-ammonite, ob-applescript, ob-async, ob-axiom, ... |
+| 171 | helm                | helm, helm-R, helm-ack, helm-ad, ...         |
+|  94 | flycheck            | flycheck, flycheck-ameba, flycheck-apertium, ...          |
+|  76 | evil                | evil, evil-anzu, evil-args, evil-avy, ...  |
+|  63 | company             | company, company-anaconda, company-ansible, ... | 
+|  47 | git                 | git, git-annex, git-attr, git-auto-commit-mode, ... |
+|  42 | auto-complete       | ac-alchemist, ac-c-headers, ac-capf, ac-cider, ...  |
+|  39 | flymake             | flymake, flymake-coffee, flymake-cppcheck, ... |
+|  33 | dired               | dired-atool, dired-avfs, dired-collapse, dired-du, ... |
+|  32 | lsp                 | lsp-clangd, lsp-css, lsp-dart, lsp-elixir, ... |
+|  27 | ivy                 | ivy, ivy-bibtex, ivy-clojuredocs, ivy-dired-history, ... |
+|  24 | go-                 | go-add-tags, go-autocomplete, go-capf, ... |
+|  24 | magit               | magit, magit-annex, magit-circleci, ... |
+|  21 | ido                 | ido-at-point, ido-clever-match, ... |
+|  20 | highlight           | highlight, highlight-blocks, highlight-context-line, ... |
+" 1)
+#+end_src
+
+And of course, there are lots of little packages, each solving someone's problem in a way that other people can reuse. Thank you, package contributors!
+
+*** UI: ivy, helm, hydra, transient, completion
+
+#+begin_src emacs-lisp
+(with-presentation
+  (buffer-menu)
+  (hydra-buffer-menu/body))
+#+end_src
+
+Many packages play around with user-interface ideas, like the way ivy
+and helm give you different ways to navigate and hydra can help you
+easily define keyboard shortcuts. 
+
+*** Screencasts, animated GIFs, videos
+
+It's a lot easier to learn about packages and their capabilities
+thanks to screencasts, blog posts, and videos.
+
+#+begin_src emacs-lisp
+(my/present-file "planet-emacsen.png" "https://planet.emacslife.com")
+#+end_src
+
+One way to find out about cool stuff is through the aggregator at
+[[https://planet.emacslife.com][planet.emacslife.com]] . If you write about Emacs, please let me know
+so that I can add your feed there.
+
+There's also a lot happening on Reddit at
+
+- https://reddit.com/r/emacs
+- https://reddit.com/r/orgmode
+- https://reddit.com/r/planetemacs
+- https://reddit.com/r/spacemacs
+
+#+begin_src emacs-lisp
+(my/present-file "reddit.png" "https://reddit.com/r/emacs")
+#+end_src
+
+*** LSP, REPLs
+
+#+begin_src emacs-lisp
+(my/present-file "lsp.png" "From https://github.com/emacs-lsp/lsp-mode")
+#+end_src
+
+On the coding side, the rise of language server protocols means better
+autocompletion and better code analysis tools. Interactive
+read-evaluate-print-loops (or REPLs) have gotten better, which can
+help when you're figuring things out or exploring an idea.
+
+#+begin_src emacs-lisp
+(my/present-web "https://emacsnotes.wordpress.com/2018/07/08/your-google-drive-now-within-your-emacs/")
+#+end_src
+
+People have also been working on being able to access files and
+services remotely, which is great when you don't have Emacs installed
+everywhere.
+
+*** Dynamic modules, async, automated testing, continuous integration
+
+#+begin_src emacs-lisp
+(my/present-web "https://github.com/purcell/nix-emacs-ci")
+#+end_src
+
+#+begin_src emacs-lisp
+(with-presentation 
+(goto-char (point-min))
+(re-search-forward "Emacs installations for continuous integration")
+(re-search-forward "Emacs installations for continuous integration"))
+#+end_src
+
+More and more packages have automated tests and even continuous
+integration testing with multiple versions of Emacs. Hooray for fewer
+bugs and more reliable code! If you're curious about this sort of
+stuff, please stick around for Damien Cassou's talk on continuously
+checking for quality of your packages.
+
+There have been a bunch of other improvements in Emacs core as well.
+John Wiegley will cover those details in a bit.
+
+*** Crosspollination with VSCode and Vim
+
+#+begin_src emacs-lisp
+(with-presentation (switch-to-buffer "*paint*"))
+#+end_src
+
+#+begin_src emacs-lisp
+(my/present-big-text
+(mapconcat (lambda (x)
+       (concat "- " (symbol-name (package-desc-name (cadr x))) " :: " (package-desc-summary (cadr x))))
+  (seq-filter (lambda (x) 
+    (or (string-match "vim" (package-desc-summary (cadr x)))
+        (string-match "^evil\\|vim" (symbol-name (package-desc-name (cadr x))))))
+    package-archive-contents) "\n") 5)
+#+end_src
+
+There seems to be some kind of editor renaissance. Lots of new packages copy interesting features from Vim and VS Code, and we also see people figure out how to copy their favourite Emacs things over to Vim, VSCode, and other editors too. 
+
+#+begin_src emacs-lisp
+(my/present-big-text "
+Top 5 Emacs-inspired plugins on the [[https://marketplace.visualstudio.com/search?term=emacs&target=VSCode&category=All%20categories&sortBy=Relevance][Visual Studio Marketplace]] (49 total)
+
+- [[https://marketplace.visualstudio.com/items?itemName=hiro-sun.vscode-emacs][Emacs Keymap]] - 51k installs
+- [[https://marketplace.visualstudio.com/items?itemName=Poorchop.theme-darktooth][Darktooth Theme]] - 38k installs
+- [[https://marketplace.visualstudio.com/items?itemName=lfs.vscode-emacs-friendly][Emacs Friendly Keymap]] - 36k installs
+- [[https://marketplace.visualstudio.com/items?itemName=letrieu.expand-region][expand-region]] - 24k installs
+- [[https://marketplace.visualstudio.com/items?itemName=tootone.org-mode][Org Mode]] - 23k installs
+" 5)
+#+end_src
+
+Here are the top 5 Emacs-inspired plugins on the [[https://marketplace.visualstudio.com/search?term=emacs&target=VSCode&category=All%20categories&sortBy=Relevance][Visual Studio Marketplace]].
+
+#+begin_src emacs-lisp
+(my/present-big-text 
+"
+Top 5 Emacs-inspired plugins on [[http://vimawesome.com][vimawesome.com]] (78 total)
+
+- emacscommandline
+- vim-slime
+- vim-orgmode
+- yankstack
+- VimOrganizer
+" 5) 
+#+end_src
+
+and the top 5 Emacs-inspired plugins on vimawesome.com
+
+** 1m transition
+
+With all the things people are working on, it's a very exciting time to learn more about Emacs and what it can do! 
+
+#+begin_src emacs-lisp
+(my/present-big-text "What could make the Emacs community even better?")
+#+end_src
+
+#+begin_src emacs-lisp
+(my/present-big-text "What could make the Emacs community even better?
+
+- more source code, packages, blog posts, and videos
+- more meetups and conferences
+- expanding our reach?
+
+IRC: freenode.net  #emacsconf")
+#+end_src
+
+And that's one of the reasons why we're having this Emacs conference. Yay!
+
+#+begin_src emacs-lisp
+(my/present-web "https://emacsconf.org/2019/schedule")
+#+end_src
+
+We've picked a couple of longer talks and lots of lightning talks that
+show you interesting things. We hope you'll pick up a few good keywords to
+search for or projects to check out.
+
+Let's go see what's possible. First up: John Wiegley will tell us
+about cool stuff in Emacs development!
+
+
+* Package analysis
+#+begin_src emacs-lisp :exports none
+  (length (seq-uniq
+           (mapcar (lambda (x) (symbol-name (car x)))
+                   package-archive-contents)))
+#+end_src
+
+#+begin_src emacs-lisp :exports none
+  (let ((package-prefix
+         '(("\\(ac-\\|auto-complete\\)" . "auto-complete") "company" "counsel" "dired" "emms" "erc"
+         "eshell" "evil" "flycheck" "flymake" "flyspell" "git" "go-"
+         "haskell-" "helm" "highlight" "ibuffer" "ido" "ivy" "lsp"
+         "magit" "mu4e" ("\\(ob-\\|org\\|ox-\\)" . "Org") "php" "phi-" "poly-"
+         "projectile" "python" "rcirc" "realgud" "ruby" "treemacs-"
+         "use-package" "vc" "wgrep" "xah")))
+    (sort
+     (mapcar (lambda (prefix)
+                   (let ((matching
+                          (sort
+                          (seq-uniq
+                            (seq-filter (lambda (x) (string-match (concat "^" (if (stringp prefix) prefix (car prefix))) x))
+                                         (mapcar (lambda (x) (symbol-name (car x)))
+                                                 package-archive-contents)))
+                           'string<)
+                          ))
+                     (list (if (stringp prefix) prefix (cdr prefix))
+                           (length matching)
+                           (s-join ", " matching))
+                     ))
+             package-prefix)
+     (lambda (a b)
+       (< (cadr b) (cadr a)))))
+#+end_src
+
+* Objectives
+
+What do I want to do with this talk? How does it fit into the
+conference? 
+
+I want to quickly give an overview of cool stuff and help people catch
+up so that people can learn more, and I want to celebrate people's
+contributions. I want to encourage more of the good stuff. I'm tilting
+it to be more of an overview instead of a howto because I think it
+would be more exciting that way and we need a keynote-ish talk. WCS,
+we can drop it and go straight to explaining the agenda and
+introducing the next speaker. So if I'm going to take up time, I want
+to add value. 
+
+what do I want people to walk away with?
+- community members: Emacs is awesome and fun, and it has grown a lot in the last few years
+- newbies: Emacs is big and inspiring
+- contributors: yay, I matter!
+
